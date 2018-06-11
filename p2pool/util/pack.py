@@ -60,15 +60,8 @@ class Type(object):
     
     
     def unpack(self, data, ignore_trailing=False):
-        obj = self._unpack(data, ignore_trailing)
-        
-        if p2pool.DEBUG:
-            packed = self._pack(obj)
-            good = data.startswith(packed) if ignore_trailing else data == packed
-            if not good:
-                raise AssertionError()
-        
-        return obj
+        # No check since reading and writing can be different
+        return self._unpack(data, ignore_trailing)
     
     def pack(self, obj):
         # No check since obj can have more keys than our type
