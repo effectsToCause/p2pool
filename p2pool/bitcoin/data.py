@@ -110,60 +110,13 @@ tx_out_type = pack.ComposedType([
 
 tx_id_type = pack.ComposedType([
     ('version', pack.IntType(32)),
+    ('timestamp', pack.IntType(32)),
     ('tx_ins', pack.ListType(tx_in_type)),
     ('tx_outs', pack.ListType(tx_out_type)),
     ('lock_time', pack.IntType(32))
 ])
 
-class TransactionType(pack.Type):
-    _int_type = pack.IntType(32)
-    _varint_type = pack.VarIntType()
-    _witness_type = pack.ListType(pack.VarStrType())
-    _wtx_type = pack.ComposedType([
-        ('flag', pack.IntType(8)),
-        ('tx_ins', pack.ListType(tx_in_type)),
-        ('tx_outs', pack.ListType(tx_out_type))
-    ])
-    _ntx_type = pack.ComposedType([
-        ('tx_outs', pack.ListType(tx_out_type)),
-        ('lock_time', _int_type)
-    ])
-    _write_type = pack.ComposedType([
-        ('version', _int_type),
-        ('marker', pack.IntType(8)),
-        ('flag', pack.IntType(8)),
-        ('tx_ins', pack.ListType(tx_in_type)),
-        ('tx_outs', pack.ListType(tx_out_type))
-    ])
-
-    def read(self, file):
-        version, file = self._int_type.read(file)
-        marker, file = self._varint_type.read(file)
-        if marker == 0:
-            next, file = self._wtx_type.read(file)
-            witness = [None]*len(next['tx_ins'])
-            for i in xrange(len(next['tx_ins'])):
-                witness[i], file = self._witness_type.read(file)
-            locktime, file = self._int_type.read(file)
-            return dict(version=version, marker=marker, flag=next['flag'], tx_ins=next['tx_ins'], tx_outs=next['tx_outs'], witness=witness, lock_time=locktime), file
-        else:
-            tx_ins = [None]*marker
-            for i in xrange(marker):
-                tx_ins[i], file = tx_in_type.read(file)
-            next, file = self._ntx_type.read(file)
-            return dict(version=version, tx_ins=tx_ins, tx_outs=next['tx_outs'], lock_time=next['lock_time']), file
-    
-    def write(self, file, item):
-        if is_segwit_tx(item):
-            assert len(item['tx_ins']) == len(item['witness'])
-            res = self._write_type.pack(item)
-            for w in item['witness']:
-                res += self._witness_type.pack(w)
-            res += self._int_type.pack(item['lock_time'])
-            return file, res
-        return tx_id_type.write(file, item)
-
-tx_type = TransactionType()
+tx_type = tx_id_type
 
 merkle_link_type = pack.ComposedType([
     ('branch', pack.ListType(pack.IntType(256))),
@@ -188,12 +141,10 @@ block_header_type = pack.ComposedType([
 block_type = pack.ComposedType([
     ('header', block_header_type),
     ('txs', pack.ListType(tx_type)),
+    ('signature', pack.VarStrType())
 ])
 
-stripped_block_type = pack.ComposedType([
-    ('header', block_header_type),
-    ('txs', pack.ListType(tx_id_type)),
-])
+stripped_block_type = block_type
 
 # merged mining
 
@@ -288,12 +239,12 @@ def average_attempts_to_target(average_attempts):
 def target_to_difficulty(target):
     assert 0 <= target and isinstance(target, (int, long)), target
     if target >= 2**256: warnings.warn('target >= 2**256!')
-    return (0xffff0000 * 2**(256-64) + 1)/(target + 1)
+    return 2**(256-16) / (target + 1)
 
 def difficulty_to_target(difficulty):
     assert difficulty >= 0
     if difficulty == 0: return 2**256-1
-    return min(int((0xffff0000 * 2**(256-64) + 1)/difficulty - 1 + 0.5), 2**256-1)
+    return min(int(2**(256-16) / difficulty - 1 + 0.5), 2**256-1)
 
 # human addresses
 

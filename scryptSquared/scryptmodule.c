@@ -1,6 +1,6 @@
 #include <Python.h>
 
-//#include "scrypt.h"
+#include "scrypt.h"
 
 static PyObject *scrypt_getpowhash(PyObject *self, PyObject *args)
 {
@@ -12,7 +12,7 @@ static PyObject *scrypt_getpowhash(PyObject *self, PyObject *args)
     Py_INCREF(input);
     output = PyMem_Malloc(32);
 
-    scrypt_1024_1_1_256((char *)PyString_AsString((PyObject*) input), output);
+    scrypt_1048576_1_1_256((char *)PyString_AsString((PyObject*) input), output);
     Py_DECREF(input);
     value = Py_BuildValue("s#", output, 32);
     PyMem_Free(output);
@@ -24,6 +24,7 @@ static PyMethodDef ScryptMethods[] = {
     { NULL, NULL, 0, NULL }
 };
 
-PyMODINIT_FUNC initltc_scrypt(void) {
-    (void) Py_InitModule("ltc_scrypt", ScryptMethods);
+PyMODINIT_FUNC initscryptSquared(void)
+{
+    (void) Py_InitModule("scryptSquared", ScryptMethods);
 }

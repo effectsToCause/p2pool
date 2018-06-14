@@ -168,6 +168,8 @@ class BaseShare(object):
                 this = tx_hash_to_this[tx_hash]
             else:
                 if known_txs is not None:
+                    if known_txs[tx_hash]['timestamp'] > desired_timestamp - 30:
+                        continue
                     this_size = bitcoin_data.tx_type.packed_size(known_txs[tx_hash])
                     if new_transaction_size + this_size > cls.MAX_NEW_TXS_SIZE: # limit the size of new txns/share
                         break
@@ -234,6 +236,9 @@ class BaseShare(object):
         
         gentx = dict(
             version=1,
+            # coinbase timestamp must be older than share/block timestamp
+            # maybe there are more elegant solution, but this hack works quite well for now
+            timestamp=share_info['timestamp'],
             tx_ins=[dict(
                 previous_output=None,
                 sequence=None,
@@ -427,7 +432,7 @@ class BaseShare(object):
         other_txs = self._get_other_txs(tracker, known_txs)
         if other_txs is None:
             return None # not all txs present
-        return dict(header=self.header, txs=[self.check(tracker, other_txs)] + other_txs)
+        return dict(header=self.header, txs=[self.check(tracker, other_txs)] + other_txs, signature='')
 
 class NewShare(BaseShare):
     VERSION = 17
@@ -688,9 +693,9 @@ def get_warnings(tracker, best_share, net, bitcoind_getinfo, bitcoind_work_value
             'An upgrade is likely necessary. Check http://p2pool.forre.st/ for more information.' % (
                 majority_desired_version, 100*desired_version_counts[majority_desired_version]/sum(desired_version_counts.itervalues())))
     
-    if bitcoind_getinfo['warnings'] != '':
-        if 'This is a pre-release test build' not in bitcoind_getinfo['warnings']:
-            res.append('(from bitcoind) %s' % (bitcoind_getinfo['warnings'],))
+    if bitcoind_getinfo['errors'] != '':
+        if 'This is a pre-release test build' not in bitcoind_getinfo['errors']:
+            res.append('(from bitcoind) %s' % (bitcoind_getinfo['errors'],))
     
     version_warning = getattr(net, 'VERSION_WARNING', lambda v: None)(bitcoind_getinfo['version'])
     if version_warning is not None:

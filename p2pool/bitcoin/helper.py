@@ -14,24 +14,11 @@ def check(bitcoind, net):
         print >>sys.stderr, "    Check failed! Make sure that you're connected to the right bitcoind with --bitcoind-rpc-port!"
         raise deferral.RetrySilentlyException()
     
-    version_check_result = net.VERSION_CHECK((yield bitcoind.rpc_getnetworkinfo())['version'])
+    version_check_result = net.VERSION_CHECK((yield bitcoind.rpc_getinfo())['version'])
     if version_check_result == True: version_check_result = None # deprecated
     if version_check_result == False: version_check_result = 'Coin daemon too old! Upgrade!' # deprecated
     if version_check_result is not None:
         print >>sys.stderr, '    ' + version_check_result
-        raise deferral.RetrySilentlyException()
-    
-    try:
-        blockchaininfo = yield bitcoind.rpc_getblockchaininfo()
-        softforks_supported = set(item['id'] for item in blockchaininfo.get('softforks', []))
-        try:
-            softforks_supported |= set(item['id'] for item in blockchaininfo.get('bip9_softforks', []))
-        except TypeError: # https://github.com/bitcoin/bitcoin/pull/7863
-            softforks_supported |= set(item for item in blockchaininfo.get('bip9_softforks', []))
-    except jsonrpc.Error_for_code(-32601): # Method not found
-        softforks_supported = set()
-    if getattr(net, 'SOFTFORKS_REQUIRED', set()) - softforks_supported:
-        print 'Coin daemon too old! Upgrade!'
         raise deferral.RetrySilentlyException()
 
 @deferral.retry('Error getting work from bitcoind:', 3)
@@ -39,7 +26,7 @@ def check(bitcoind, net):
 def getwork(bitcoind, use_getblocktemplate=False):
     def go():
         if use_getblocktemplate:
-            return bitcoind.rpc_getblocktemplate(dict(mode='template', rules=['segwit']))
+            return bitcoind.rpc_getblocktemplate(dict(mode='template'))
         else:
             return bitcoind.rpc_getmemorypool()
     try:
@@ -56,6 +43,14 @@ def getwork(bitcoind, use_getblocktemplate=False):
             print >>sys.stderr, 'Error: Bitcoin version too old! Upgrade to v0.5 or newer!'
             raise deferral.RetrySilentlyException()
     packed_transactions = [x['data'].decode('hex') for x in work['transactions'] if len(x.get('depends', [])) == 0]
+
+    transactions = map(bitcoin_data.tx_type.unpack, packed_transactions)
+    transaction_hashes = map(bitcoin_data.hash256, packed_transactions)
+    txn_timestamp = 0
+    for tx in transactions:
+        if tx['timestamp'] > txn_timestamp:
+            txn_timestamp = tx['timestamp']
+
     if 'height' not in work:
         work['height'] = (yield bitcoind.rpc_getblock(work['previousblockhash']))['height'] + 1
     elif p2pool.DEBUG:
@@ -63,11 +58,12 @@ def getwork(bitcoind, use_getblocktemplate=False):
     defer.returnValue(dict(
         version=work['version'],
         previous_block=int(work['previousblockhash'], 16),
-        transactions=map(bitcoin_data.tx_type.unpack, packed_transactions),
-        transaction_hashes=map(bitcoin_data.hash256, packed_transactions),
+        transactions=transactions,
+        transaction_hashes=transaction_hashes,
         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
         subsidy=work['coinbasevalue'],
         time=work['time'] if 'time' in work else work['curtime'],
+        txn_timestamp=txn_timestamp,
         bits=bitcoin_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else bitcoin_data.FloatingInteger(work['bits']),
         coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
         height=work['height'],

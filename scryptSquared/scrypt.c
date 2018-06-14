@@ -38,7 +38,7 @@ be32dec(const void *pp)
 	const uint8_t *p = (uint8_t const *)pp;
 
 	return ((uint32_t)(p[3]) + ((uint32_t)(p[2]) << 8) +
-	    ((uint32_t)(p[1]) << 16) + ((uint32_t)(p[0]) << 24));
+		((uint32_t)(p[1]) << 16) + ((uint32_t)(p[0]) << 24));
 }
 
 static __inline void
@@ -58,7 +58,7 @@ le32dec(const void *pp)
 	const uint8_t *p = (uint8_t const *)pp;
 
 	return ((uint32_t)(p[0]) + ((uint32_t)(p[1]) << 8) +
-	    ((uint32_t)(p[2]) << 16) + ((uint32_t)(p[3]) << 24));
+		((uint32_t)(p[2]) << 16) + ((uint32_t)(p[3]) << 24));
 }
 
 static __inline void
@@ -130,10 +130,10 @@ be32dec_vect(uint32_t *dst, const unsigned char *src, size_t len)
 /* Adjusted round function for rotating state */
 #define RNDr(S, W, i, k)			\
 	RND(S[(64 - i) % 8], S[(65 - i) % 8],	\
-	    S[(66 - i) % 8], S[(67 - i) % 8],	\
-	    S[(68 - i) % 8], S[(69 - i) % 8],	\
-	    S[(70 - i) % 8], S[(71 - i) % 8],	\
-	    W[i] + k)
+		S[(66 - i) % 8], S[(67 - i) % 8],	\
+		S[(68 - i) % 8], S[(69 - i) % 8],	\
+		S[(70 - i) % 8], S[(71 - i) % 8],	\
+		W[i] + k)
 
 /*
  * SHA256 block compression function.  The 256-bit state is transformed via
@@ -411,7 +411,7 @@ HMAC_SHA256_Final(unsigned char digest[32], HMAC_SHA256_CTX * ctx)
  */
 static void
 PBKDF2_SHA256(const uint8_t * passwd, size_t passwdlen, const uint8_t * salt,
-    size_t saltlen, uint64_t c, uint8_t * buf, size_t dkLen)
+	size_t saltlen, uint64_t c, uint8_t * buf, size_t dkLen)
 {
 	HMAC_SHA256_CTX PShctx, hctx;
 	size_t i;
@@ -645,14 +645,14 @@ smix(uint8_t * B, size_t r, uint64_t N, uint32_t * V, uint32_t * XY)
 /* cpu and memory intensive function to transform a 80 byte buffer into a 32 byte output
    scratchpad size needs to be at least 63 + (128 * r * p) + (256 * r + 64) + (128 * r * N) bytes
  */
-void scrypt_1024_1_1_256_sp(const char* input, char* output, char* scratchpad)
+void scrypt_1048576_1_1_256_sp(const char* input, char* output, char* scratchpad)
 {
 	uint8_t * B;
 	uint32_t * V;
 	uint32_t * XY;
 	uint32_t i;
 
-	const uint32_t N = 1024;
+	const uint32_t N = 1048576;
 	const uint32_t r = 1;
 	const uint32_t p = 1;
 
@@ -673,9 +673,11 @@ void scrypt_1024_1_1_256_sp(const char* input, char* output, char* scratchpad)
 	PBKDF2_SHA256((const uint8_t*)input, 80, B, p * 128 * r, 1, (uint8_t*)output, 32);
 }
 
-void scrypt_1024_1_1_256(const char* input, char* output)
+void scrypt_1048576_1_1_256(const char* input, char* output)
 {
-	char scratchpad[131583];
-	scrypt_1024_1_1_256_sp(input, output, scratchpad);
+	const size_t memory = 134218239;
+	char *scratchpad = (char*)malloc(memory);
+	scrypt_1048576_1_1_256_sp(input, output, scratchpad);
+	free(scratchpad);
 }
 

@@ -18,7 +18,7 @@ class Protocol(p2protocol.Protocol):
     
     def connectionMade(self):
         self.send_version(
-            version=70002,
+            version=80001,
             services=1,
             time=int(time.time()),
             addr_to=dict(
@@ -32,9 +32,24 @@ class Protocol(p2protocol.Protocol):
                 port=self.transport.getHost().port,
             ),
             nonce=random.randrange(2**64),
-            sub_version_num='/P2Pool:%s/' % (p2pool.__version__,),
-            start_height=0,
+            extra=64
         )
+
+    class ExtraDataType(pack.Type):
+        def read(self, file):
+            b = pack.IntType(8)
+            res = 0
+            while True:
+                try:
+                    _, file = b.read(file)
+                    res += 1
+                except Exception:
+                    break
+            return res, file
+
+        def write(self, file, item):
+            d = pack.FixedStrType(item)
+            return d.write(file, '\0'*item)
     
     message_version = pack.ComposedType([
         ('version', pack.IntType(32)),
@@ -43,10 +58,9 @@ class Protocol(p2protocol.Protocol):
         ('addr_to', bitcoin_data.address_type),
         ('addr_from', bitcoin_data.address_type),
         ('nonce', pack.IntType(64)),
-        ('sub_version_num', pack.VarStrType()),
-        ('start_height', pack.IntType(32)),
+        ('extra', ExtraDataType())
     ])
-    def handle_version(self, version, services, time, addr_to, addr_from, nonce, sub_version_num, start_height):
+    def handle_version(self, version, services, time, addr_to, addr_from, nonce, extra):
         self.send_verack()
     
     message_verack = pack.ComposedType([])
@@ -154,7 +168,7 @@ class Protocol(p2protocol.Protocol):
         ('data', pack.IntType(256)),
     ])
     def handle_reject(self, message, ccode, reason, data):
-        if p2pool.DEBUG:
+        if True:
             print >>sys.stderr, 'Received reject message (%s): %s' % (message, reason)
     
     def connectionLost(self, reason):
@@ -162,7 +176,7 @@ class Protocol(p2protocol.Protocol):
             self.factory.gotConnection(None)
         if hasattr(self, 'pinger'):
             self.pinger.stop()
-        if p2pool.DEBUG:
+        if True:
             print >>sys.stderr, 'Bitcoin connection lost. Reason:', reason.getErrorMessage()
 
 class ClientFactory(protocol.ReconnectingClientFactory):
