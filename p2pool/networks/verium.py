@@ -16,10 +16,10 @@ IDENTIFIER = 'e037d5b8c6923610'.decode('hex')
 PREFIX = 'e05775b8c6a6331d'.decode('hex')
 P2P_PORT = 36999
 MIN_TARGET = 0
-MAX_TARGET = 2**(256-11) - 1
-PERSIST = False
+MAX_TARGET = 2**(256-8) - 1
+PERSIST = True
 WORKER_PORT = 8336
-BOOTSTRAP_ADDRS = 'emea.supernode.vericonomy.com amer.supernode.vericonomy.com apac.supernode.vericonomy.com'.split(' ')
+BOOTSTRAP_ADDRS = 'emea.p2pool.vericonomy.com amer.p2pool.vericonomy.com apac.p2pool.vericonomy.com'.split(' ')
 ANNOUNCE_CHANNEL = '#p2pool-verium'
 VERSION_CHECK = lambda v: None if 80001 <= v else 'Verium version too old. Upgrade to 1.0.1 or newer!'
 VERSION_WARNING = lambda v: None
