@@ -7,9 +7,9 @@ from p2pool.bitcoin import networks
 # changes can be done by changing one, then the other
 
 PARENT = networks.nets['verium']
-SHARE_PERIOD = 30 # seconds
-CHAIN_LENGTH = 24*60*60//10 # shares
-REAL_CHAIN_LENGTH = 24*60*60//10 # shares
+SHARE_PERIOD = 60 # seconds
+CHAIN_LENGTH = 24*60 # shares
+REAL_CHAIN_LENGTH = 24*60 # shares
 TARGET_LOOKBEHIND = 200 # shares
 SPREAD = 3 # blocks
 IDENTIFIER = 'e037d5b8c6923610'.decode('hex')
